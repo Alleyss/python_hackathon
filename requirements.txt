@@ -2,3 +2,5 @@ flask
 google-generativeai
 firebase-admin
 gunicorn
+requests
+python-dotenv

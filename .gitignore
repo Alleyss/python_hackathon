@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+chatbot_env/
+uploads/
+chatbot_v2.db
+chatbot.db
+*.bat

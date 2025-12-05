@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chatbot</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <!-- Login Overlay -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>Welcome to Gemini Chat</h2>
+            <p>Please sign in to continue</p>
+            <button id="google-login-btn"><i class="fab fa-google"></i> Sign in with Google</button>
+            <p class="error-msg" id="login-error"></p>
+        </div>
+    </div>
+
+    <div class="app-container" style="display: none;" id="main-app">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-robot"></i> Gemini</h2>
+                <button id="new-chat-btn" title="New Chat"><i class="fas fa-plus"></i></button>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <span class="nav-label">Menu</span>
+                    <a href="#" class="nav-item active" id="nav-chat"><i class="fas fa-comment-alt"></i> Chat</a>
+                    <a href="#" class="nav-item" id="nav-weather"><i class="fas fa-cloud-sun"></i> Weather</a>
+                    <a href="#" class="nav-item" id="nav-about"><i class="fas fa-info-circle"></i> About</a>
+                    <a href="#" class="nav-item" id="nav-settings"><i class="fas fa-cog"></i> Settings</a>
+                </div>
+                <div class="nav-section">
+                    <span class="nav-label">History</span>
+                    <div id="chat-history-list">
+                        <!-- Chat items will be loaded here -->
+                    </div>
+                </div>
+            </nav>
+            <div class="user-profile">
+                <div class="user-info">
+                    <img id="user-avatar" src="" alt="User">
+                    <span id="user-name">User</span>
+                </div>
+                <button id="logout-btn" title="Logout"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <h1 id="chat-title">New Chat</h1>
+            </div>
+            <div id="chat-box"></div>
+            <form id="chat-form">
+                <label for="file-input" class="icon-btn" title="Upload File">
+                    <i class="fas fa-paperclip"></i>
+                </label>
+                <input type="file" id="file-input" style="display: none;">
+
+                <input type="text" id="user-input" name="user_input" placeholder="Type a message..." autocomplete="off">
+
+                <button type="button" id="voice-btn" class="icon-btn" title="Voice Input">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                <button type="submit" id="send-btn"><i class="fas fa-paper-plane"></i></button>
+            </form>
+        </div>
+
+        <!-- Weather View -->
+        <div id="weather-view" class="main-view" style="display: none;">
+            <div class="weather-container">
+                <div class="weather-search">
+                    <input type="text" id="city-input" placeholder="Enter city name...">
+                    <button id="search-weather-btn"><i class="fas fa-search"></i></button>
+                </div>
+                <div id="weather-card" class="weather-card" style="display: none;">
+                    <div class="weather-header">
+                        <h2 id="weather-city">City Name</h2>
+                        <span id="weather-country">Country</span>
+                    </div>
+                    <div class="weather-body">
+                        <img id="weather-icon" src="" alt="Weather Icon">
+                        <div class="weather-temp">
+                            <span id="temp-c">0</span>°C
+                        </div>
+                        <div class="weather-condition" id="weather-text">Condition</div>
+                    </div>
+                    <div class="weather-details">
+                        <div class="detail-item">
+                            <i class="fas fa-wind"></i>
+                            <span id="wind-kph">0 km/h</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-tint"></i>
+                            <span id="humidity">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="weather-error" class="error-msg" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="about-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>About Gemini Chat</h2>
+            <p>A powerful AI chatbot powered by Google's Gemini model.</p>
+            <p>Version 1.0.0</p>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Settings</h2>
+            <div class="setting-item">
+                <label>Theme</label>
+                <select>
+                    <option>Dark</option>
+                    <option>Light</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Markdown & Highlight.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAjotz3OeXIrXBjsCvrNRYfjWo4pTvhVPU",
+            authDomain: "chatbot-ai-ff3e2.firebaseapp.com",
+            projectId: "chatbot-ai-ff3e2",
+            storageBucket: "chatbot-ai-ff3e2.firebasestorage.app",
+            messagingSenderId: "732680598518",
+            appId: "1:732680598518:web:b3b7bf1b2abf2d4bf1cdd7",
+            measurementId: "G-G9B3JRVJ0L"
+        };
+
+        let app, auth;
+
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            console.log("Firebase Initialized");
+        } catch (e) {
+            console.error("Firebase init error:", e);
+            document.getElementById("login-error").innerText = "Error: Invalid Firebase Config. Please check console.";
+        }
+
+        const loginOverlay = document.getElementById("login-overlay");
+        const mainApp = document.getElementById("main-app");
+        const googleLoginBtn = document.getElementById("google-login-btn");
+        const logoutBtn = document.getElementById("logout-btn");
+        const userAvatar = document.getElementById("user-avatar");
+        const userName = document.getElementById("user-name");
+
+        // --- Navigation & Modals ---
+        const aboutModal = document.getElementById("about-modal");
+        const settingsModal = document.getElementById("settings-modal");
+        const closeButtons = document.querySelectorAll(".close-modal");
+
+        const mainAppView = document.querySelector(".chat-container"); // Actually chat container
+        const weatherView = document.getElementById("weather-view");
+        const navChat = document.getElementById("nav-chat");
+        const navWeather = document.getElementById("nav-weather");
+
+        function switchView(viewName) {
+            if (viewName === 'chat') {
+                mainAppView.style.display = "flex";
+                weatherView.style.display = "none";
+                navChat.classList.add("active");
+                navWeather.classList.remove("active");
+            } else if (viewName === 'weather') {
+                mainAppView.style.display = "none";
+                weatherView.style.display = "flex";
+                navChat.classList.remove("active");
+                navWeather.classList.add("active");
+            }
+        }
+
+        navChat.addEventListener("click", () => switchView('chat'));
+        navWeather.addEventListener("click", () => switchView('weather'));
+
+        document.getElementById("nav-about").addEventListener("click", () => aboutModal.style.display = "flex");
+        document.getElementById("nav-settings").addEventListener("click", () => settingsModal.style.display = "flex");
+
+        closeButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                aboutModal.style.display = "none";
+                settingsModal.style.display = "none";
+            });
+        });
+
+        window.onclick = (event) => {
+            if (event.target == aboutModal) aboutModal.style.display = "none";
+            if (event.target == settingsModal) settingsModal.style.display = "none";
+        };
+
+        // --- Weather Logic ---
+        const cityInput = document.getElementById("city-input");
+        const searchWeatherBtn = document.getElementById("search-weather-btn");
+        const weatherCard = document.getElementById("weather-card");
+        const weatherError = document.getElementById("weather-error");
+
+        async function fetchWeather() {
+            const city = cityInput.value;
+            if (!city) return;
+
+            weatherError.style.display = "none";
+            weatherCard.style.display = "none";
+
+            try {
+                const response = await fetch("/get_weather", {
+                    method: "POST",
+                    body: new URLSearchParams({ city: city }),
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" }
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    weatherError.innerText = "Error: " + (data.error.message || "City not found");
+                    weatherError.style.display = "block";
+                } else {
+                    document.getElementById("weather-city").innerText = data.location.name;
+                    document.getElementById("weather-country").innerText = data.location.country;
+                    document.getElementById("weather-icon").src = "https:" + data.current.condition.icon;
+                    document.getElementById("temp-c").innerText = data.current.temp_c;
+                    document.getElementById("weather-text").innerText = data.current.condition.text;
+                    document.getElementById("wind-kph").innerText = data.current.wind_kph + " km/h";
+                    document.getElementById("humidity").innerText = data.current.humidity + "%";
+
+                    weatherCard.style.display = "flex";
+                }
+            } catch (e) {
+                weatherError.innerText = "Failed to fetch weather data.";
+                weatherError.style.display = "block";
+            }
+        }
+
+        searchWeatherBtn.addEventListener("click", fetchWeather);
+        cityInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") fetchWeather();
+        });
+
+        // --- Chat Session Logic ---
+        let currentChatId = null;
+        const chatHistoryList = document.getElementById("chat-history-list");
+        const newChatBtn = document.getElementById("new-chat-btn");
+        const chatTitle = document.getElementById("chat-title");
+
+        async function loadChatHistory() {
+            const user = auth.currentUser;
+            const token = user ? await user.getIdToken() : "";
+
+            const response = await fetch("/get_chats", {
+                method: "POST",
+                body: new URLSearchParams({ token: token }),
+                headers: { "Content-Type": "application/x-www-form-urlencoded" }
+            });
+            const chats = await response.json();
+
+            chatHistoryList.innerHTML = "";
+            chats.forEach(chat => {
+                const item = document.createElement("div");
+                item.classList.add("history-item");
+                item.innerText = chat.title;
+                item.onclick = () => loadChat(chat.id, chat.title);
+                if (chat.id === currentChatId) item.classList.add("active");
+                chatHistoryList.appendChild(item);
+            });
+        }
+
+        async function loadChat(chatId, title) {
+            currentChatId = chatId;
+            chatTitle.innerText = title;
+            chatBox.innerHTML = ""; // Clear current messages
+
+            // Highlight active in sidebar
+            document.querySelectorAll(".history-item").forEach(el => el.classList.remove("active"));
+
+            const response = await fetch("/get_messages", {
+                method: "POST",
+                body: new URLSearchParams({ chat_id: chatId }),
+                headers: { "Content-Type": "application/x-www-form-urlencoded" }
+            });
+            const messages = await response.json();
+
+            messages.forEach(msg => {
+                // Reconstruct message display
+                let text = msg.content;
+                if (msg.file_path) text += ` [File Attached]`; // Simplified for history
+                appendMessage(text, msg.sender);
+            });
+
+            loadChatHistory(); // Refresh list to update active state
+            switchView('chat'); // Ensure we switch back to chat view
+        }
+
+        newChatBtn.addEventListener("click", async () => {
+            const user = auth.currentUser;
+            const token = user ? await user.getIdToken() : "";
+
+            const response = await fetch("/new_chat", {
+                method: "POST",
+                body: new URLSearchParams({ token: token }),
+                headers: { "Content-Type": "application/x-www-form-urlencoded" }
+            });
+            const data = await response.json();
+            currentChatId = data.chat_id;
+            chatTitle.innerText = "New Chat";
+            chatBox.innerHTML = "";
+            appendMessage("Started a new chat!", "bot");
+            loadChatHistory();
+            switchView('chat'); // Ensure we switch back to chat view
+        });
+
+        // Auth State Listener
+        let welcomeMessageShown = false;
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("User is logged in:", user.displayName);
+                loginOverlay.style.display = "none";
+                mainApp.style.display = "flex";
+
+                // Update Sidebar Profile
+                userName.innerText = user.displayName;
+                userAvatar.src = user.photoURL || 'https://via.placeholder.com/40';
+
+                loadChatHistory(); // Load history on login
+
+                if (!welcomeMessageShown) {
+                    // appendMessage("Welcome back, " + user.displayName + "!", "bot");
+                    welcomeMessageShown = true;
+                }
+            } else {
+                console.log("User is logged out");
+                loginOverlay.style.display = "flex";
+                mainApp.style.display = "none";
+                welcomeMessageShown = false;
+            }
+        });
+
+        // Login
+        googleLoginBtn.addEventListener("click", () => {
+            if (!auth) { alert("Error: Firebase Auth not initialized."); return; }
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider).catch((error) => {
+                console.error("Login failed", error);
+                document.getElementById("login-error").innerText = error.message;
+            });
+        });
+
+        // Logout
+        logoutBtn.addEventListener("click", () => signOut(auth));
+
+        // --- Voice Input ---
+        const voiceBtn = document.getElementById("voice-btn");
+        const userInput = document.getElementById("user-input");
+
+        if ('webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+
+            voiceBtn.addEventListener("click", () => {
+                recognition.start();
+                voiceBtn.style.color = "#e94560"; // Active state
+            });
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                userInput.value += transcript;
+                voiceBtn.style.color = ""; // Reset
+            };
+
+            recognition.onerror = () => voiceBtn.style.color = "";
+            recognition.onend = () => voiceBtn.style.color = "";
+        } else {
+            voiceBtn.style.display = "none"; // Hide if not supported
+        }
+
+        // --- File Input & Preview ---
+        const fileInput = document.getElementById("file-input");
+        const chatForm = document.getElementById("chat-form");
+
+        // Create Preview Container
+        const previewContainer = document.createElement("div");
+        previewContainer.id = "file-preview-container";
+        previewContainer.style.display = "none";
+        chatForm.insertBefore(previewContainer, chatForm.firstChild);
+
+        fileInput.addEventListener("change", () => {
+            const file = fileInput.files[0];
+            if (file) {
+                previewContainer.innerHTML = `
+                    <div class="file-chip">
+                        <span class="file-name">${file.name}</span>
+                        <button type="button" class="remove-file">&times;</button>
+                    </div>
+                `;
+                previewContainer.style.display = "flex";
+
+                // Remove File Logic
+                previewContainer.querySelector(".remove-file").addEventListener("click", () => {
+                    fileInput.value = ""; // Clear input
+                    previewContainer.innerHTML = "";
+                    previewContainer.style.display = "none";
+                });
+            }
+        });
+
+        // --- Chat Logic ---
+        const form = document.getElementById("chat-form");
+        const chatBox = document.getElementById("chat-box");
+
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function appendMessage(text, sender) {
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message-row", sender === "user" ? "user-row" : "bot-row");
+
+            const avatar = document.createElement("div");
+            avatar.classList.add("avatar");
+
+            if (sender === "user") {
+                const user = auth.currentUser;
+                if (user && user.photoURL) {
+                    avatar.innerHTML = `<img src="${user.photoURL}" style="width:100%; height:100%; border-radius:50%;">`;
+                } else {
+                    avatar.innerHTML = '<i class="fas fa-user"></i>';
+                }
+            } else {
+                avatar.innerHTML = '<i class="fas fa-robot"></i>';
+            }
+
+            const bubble = document.createElement("div");
+            bubble.classList.add("message-bubble", sender === "user" ? "user-message" : "bot-message");
+
+            if (sender === "bot") {
+                bubble.innerHTML = marked.parse(text);
+                bubble.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
+            } else {
+                bubble.innerText = text;
+            }
+
+            const timestamp = document.createElement("span");
+            timestamp.classList.add("timestamp");
+            timestamp.innerText = getCurrentTime();
+
+            if (sender === "user") {
+                messageDiv.appendChild(bubble);
+                messageDiv.appendChild(avatar);
+            } else {
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(bubble);
+            }
+
+            bubble.appendChild(document.createElement("br"));
+            bubble.appendChild(timestamp);
+
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!userInput.value && !fileInput.files.length) return;
+
+            const text = userInput.value;
+            let displayMessage = text;
+
+            // If file is attached, add to display message
+            if (fileInput.files.length > 0) {
+                displayMessage += ` [File: ${fileInput.files[0].name}]`;
+            }
+
+            appendMessage(displayMessage, "user");
+            userInput.value = "";
+
+            // Clear preview
+            previewContainer.innerHTML = "";
+            previewContainer.style.display = "none";
+
+            // Show Loading Animation
+            const loadingDiv = document.createElement("div");
+            loadingDiv.classList.add("message-row", "bot-row");
+            loadingDiv.innerHTML = `
+                <div class="avatar"><i class="fas fa-robot"></i></div>
+                <div class="loading-bubble">
+                    <span>${fileInput.files.length > 0 ? "Analyzing file..." : "Thinking..."}</span>
+                    <div class="loading-dots">
+                        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                    </div>
+                </div>
+            `;
+            chatBox.appendChild(loadingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const user = auth.currentUser;
+                const token = user ? await user.getIdToken() : "";
+
+                const formData = new FormData();
+                formData.append("user_input", text);
+                formData.append("token", token);
+                if (currentChatId) formData.append("chat_id", currentChatId); // Send Chat ID
+                if (fileInput.files.length > 0) {
+                    formData.append("file", fileInput.files[0]);
+                }
+
+                const response = await fetch("/get_response", {
+                    method: "POST",
+                    body: formData
+                });
+
+                // Remove Loading Animation
+                chatBox.removeChild(loadingDiv);
+
+                const data = await response.json(); // Expect JSON now
+
+                if (data.chat_id) {
+                    currentChatId = data.chat_id; // Update ID if created
+                }
+                appendMessage(data.response, "bot");
+
+                fileInput.value = "";
+
+                // Refresh history to show new title
+                await loadChatHistory();
+            } catch (error) {
+                if (loadingDiv.parentNode) chatBox.removeChild(loadingDiv); // Ensure removal on error
+                appendMessage("Error: Could not connect to server.", "bot");
+            }
+        });
+    </script>
+</body>
+
+</html>

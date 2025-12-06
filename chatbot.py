@@ -1,9 +1,9 @@
 import google.generativeai as genai
 import os
-
+from dotenv import load_dotenv
 # Set your Gemini API key
 # It is recommended to use environment variables: os.environ["GEMINI_API_KEY"]
-GEMINI_API_KEY = "AIzaSyA0PbGUB9abNwJEpk2fTp7pUFCWeRi1zIU"
+load_dotenv()
 genai.configure(api_key=GEMINI_API_KEY)
 
 def chatbot_response(prompt, file_path=None, mime_type=None, history=[]):

@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 # Set your Gemini API key
 # It is recommended to use environment variables: os.environ["GEMINI_API_KEY"]
 load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 
 def chatbot_response(prompt, file_path=None, mime_type=None, history=[]):
